@@ -213,6 +213,9 @@ func InitDB() (err error) {
 func InitLogDB() (err error) {
 	if os.Getenv("LOG_SQL_DSN") == "" {
 		LOG_DB = DB
+		if common.IsMasterNode {
+			err = migrateLOGDB()
+		}
 		return
 	}
 	db, err := chooseDB("LOG_SQL_DSN", true)
