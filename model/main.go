@@ -376,6 +376,11 @@ func migrateLOGDB() error {
 	if err = LOG_DB.AutoMigrate(&RequestLog{}); err != nil {
 		return err
 	}
+	// Migrate TEXT -> MEDIUMTEXT for MySQL (TEXT is 64KB, too small for large requests)
+	if common.UsingMySQL || common.LogSqlType == common.DatabaseTypeMySQL {
+		LOG_DB.Exec("ALTER TABLE `request_logs` MODIFY `request_body` MEDIUMTEXT")
+		LOG_DB.Exec("ALTER TABLE `request_logs` MODIFY `response_body` MEDIUMTEXT")
+	}
 	return nil
 }
 

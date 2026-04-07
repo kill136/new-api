@@ -7,14 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const KeyResponseBody = "key_response_body"
+const KeyResponseBodyWriter = "key_response_body_writer"
 const maxResponseCaptureSize = 64 * 1024 // 64KB
 
 // responseBodyWriter wraps gin.ResponseWriter to capture the response body
 type responseBodyWriter struct {
 	gin.ResponseWriter
-	body    *bytes.Buffer
-	capped  bool
+	body   *bytes.Buffer
+	capped bool
 }
 
 func (w *responseBodyWriter) Write(b []byte) (int, error) {
@@ -33,6 +33,16 @@ func (w *responseBodyWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+// GetCapturedResponseBody returns the captured bytes from the writer stored in context.
+func GetCapturedResponseBody(c *gin.Context) []byte {
+	if w, exists := c.Get(KeyResponseBodyWriter); exists {
+		if rbw, ok := w.(*responseBodyWriter); ok {
+			return rbw.body.Bytes()
+		}
+	}
+	return nil
+}
+
 // RequestLogCapture captures the response body for request logging.
 // Only active when LogRequestBodyEnabled is true.
 func RequestLogCapture() gin.HandlerFunc {
@@ -46,7 +56,7 @@ func RequestLogCapture() gin.HandlerFunc {
 			body:           &bytes.Buffer{},
 		}
 		c.Writer = writer
+		c.Set(KeyResponseBodyWriter, writer)
 		c.Next()
-		c.Set(KeyResponseBody, writer.body.Bytes())
 	}
 }

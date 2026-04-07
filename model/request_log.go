@@ -7,8 +7,8 @@ type RequestLog struct {
 	UserId       int    `json:"user_id" gorm:"index"`
 	CreatedAt    int64  `json:"created_at" gorm:"bigint;index"`
 	RequestId    string `json:"request_id" gorm:"type:varchar(64);index:idx_request_log_request_id;default:''"`
-	RequestBody  string `json:"request_body" gorm:"type:text"`
-	ResponseBody string `json:"response_body" gorm:"type:text"`
+	RequestBody  string `json:"request_body" gorm:"type:mediumtext"`
+	ResponseBody string `json:"response_body" gorm:"type:mediumtext"`
 	ModelName    string `json:"model_name" gorm:"type:varchar(255);index;default:''"`
 	TokenName    string `json:"token_name" gorm:"type:varchar(255);default:''"`
 	ChannelId    int    `json:"channel_id" gorm:"default:0"`
