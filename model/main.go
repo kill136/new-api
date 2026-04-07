@@ -370,6 +370,9 @@ func migrateLOGDB() error {
 	if err = LOG_DB.AutoMigrate(&Log{}); err != nil {
 		return err
 	}
+	if err = LOG_DB.AutoMigrate(&RequestLog{}); err != nil {
+		return err
+	}
 	return nil
 }
 

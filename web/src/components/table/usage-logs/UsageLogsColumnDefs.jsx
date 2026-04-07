@@ -35,7 +35,7 @@ import {
   renderModelPriceSimple,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { CircleAlert, Route, Sparkles } from 'lucide-react';
+import { CircleAlert, Route, Sparkles, FileSearch } from 'lucide-react';
 
 const colors = [
   'amber',
@@ -511,6 +511,7 @@ export const getLogsColumns = ({
   copyText,
   showUserInfoFunc,
   openChannelAffinityUsageCacheModal,
+  openRequestLogDetail,
   isAdminUser,
   billingDisplayMode = 'price',
 }) => {
@@ -956,6 +957,40 @@ export const getLogsColumns = ({
         }
 
         return renderCompactDetailSummary(detailSummary.segments);
+      },
+    },
+    {
+      key: COLUMN_KEYS.REQUEST_DETAIL,
+      title: t('请求详情'),
+      dataIndex: 'request_id',
+      width: 90,
+      render: (text, record) => {
+        if (
+          !record.request_id ||
+          !(record.type === 2 || record.type === 5)
+        ) {
+          return <></>;
+        }
+        return (
+          <Tooltip content={t('查看请求和响应内容')}>
+            <span
+              style={{
+                cursor: 'pointer',
+                color: 'var(--semi-color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openRequestLogDetail?.(record.request_id);
+              }}
+            >
+              <FileSearch size={16} />
+              {t('预览')}
+            </span>
+          </Tooltip>
+        );
       },
     },
   ];

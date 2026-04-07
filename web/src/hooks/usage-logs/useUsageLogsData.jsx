@@ -61,6 +61,7 @@ export const useLogsData = () => {
     RETRY: 'retry',
     IP: 'ip',
     DETAILS: 'details',
+    REQUEST_DETAIL: 'request_detail',
   };
 
   // Basic state
@@ -124,6 +125,7 @@ export const useLogsData = () => {
       [COLUMN_KEYS.RETRY]: isAdminUser,
       [COLUMN_KEYS.IP]: true,
       [COLUMN_KEYS.DETAILS]: true,
+      [COLUMN_KEYS.REQUEST_DETAIL]: true,
     };
   };
 
@@ -185,6 +187,10 @@ export const useLogsData = () => {
     useState(null);
   const [showParamOverrideModal, setShowParamOverrideModal] = useState(false);
   const [paramOverrideTarget, setParamOverrideTarget] = useState(null);
+
+  // Request log detail modal state
+  const [showRequestLogDetail, setShowRequestLogDetail] = useState(false);
+  const [requestLogDetailRequestId, setRequestLogDetailRequestId] = useState(null);
 
   // Initialize default column visibility
   const initDefaultColumns = () => {
@@ -347,6 +353,12 @@ export const useLogsData = () => {
       key_fp: a.key_fp || '',
     });
     setShowChannelAffinityUsageCacheModal(true);
+  };
+
+  const openRequestLogDetail = (requestId) => {
+    if (!requestId) return;
+    setRequestLogDetailRequestId(requestId);
+    setShowRequestLogDetail(true);
   };
 
   const openParamOverrideModal = (log, other) => {
@@ -876,6 +888,12 @@ export const useLogsData = () => {
     showParamOverrideModal,
     setShowParamOverrideModal,
     paramOverrideTarget,
+
+    // Request log detail modal
+    showRequestLogDetail,
+    setShowRequestLogDetail,
+    requestLogDetailRequestId,
+    openRequestLogDetail,
 
     // Functions
     loadLogs,
