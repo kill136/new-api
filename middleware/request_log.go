@@ -8,7 +8,7 @@ import (
 )
 
 const KeyResponseBodyWriter = "key_response_body_writer"
-const maxResponseCaptureSize = 64 * 1024 // 64KB
+const maxResponseCaptureSize = 4 * 1024 * 1024 // 4MB
 
 // responseBodyWriter wraps gin.ResponseWriter to capture the response body
 type responseBodyWriter struct {

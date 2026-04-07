@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const maxRequestLogBodySize = 64 * 1024 // 64KB per field
+const maxRequestLogBodySize = 4 * 1024 * 1024 // 4MB per field
 
 func truncateBody(body string) string {
 	if len(body) > maxRequestLogBodySize {
