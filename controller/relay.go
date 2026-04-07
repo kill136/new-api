@@ -116,15 +116,22 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			}
 		}
 		// Save request log after relay completes
-		if common.LogRequestBodyEnabled && capturedRequestBody != "" {
+		if common.LogRequestBodyEnabled {
+			if capturedRequestBody == "" {
+				common.SysLog(fmt.Sprintf("request log: request body is empty for %s", requestId))
+			}
 			responseBody := ""
 			if respBytes, exists := c.Get(middleware.KeyResponseBody); exists {
 				if rb, ok := respBytes.([]byte); ok {
 					responseBody = string(rb)
 				}
+			} else {
+				common.SysLog(fmt.Sprintf("request log: response body not captured for %s", requestId))
 			}
-			statusCode := c.Writer.Status()
-			service.SaveRequestLog(c, capturedRequestBody, responseBody, statusCode, relayStartTime)
+			if capturedRequestBody != "" {
+				statusCode := c.Writer.Status()
+				service.SaveRequestLog(c, capturedRequestBody, responseBody, statusCode, relayStartTime)
+			}
 		}
 	}()
 
