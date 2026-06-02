@@ -1,13 +1,9 @@
 package chatgpt_web
 
 import (
-	"bytes"
 	"crypto/sha3"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -16,6 +12,7 @@ import (
 )
 
 // chatRequirements 是 /backend-api/sentinel/chat-requirements 的返回。
+// 实际请求在 transport.go 用 tls-client 发出（绕过 CF 指纹墙）。
 type chatRequirements struct {
 	Persona     string `json:"persona"`
 	Token       string `json:"token"`
@@ -27,37 +24,6 @@ type chatRequirements struct {
 	Turnstile struct {
 		Required bool `json:"required"`
 	} `json:"turnstile"`
-}
-
-// fetchChatRequirements 在发 conversation 之前，先换取 sentinel token + PoW 种子。
-func fetchChatRequirements(client *http.Client, baseURL string, headers map[string]string) (*chatRequirements, error) {
-	url := strings.TrimRight(baseURL, "/") + "/backend-api/sentinel/chat-requirements"
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBufferString("{}"))
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("chatgpt-web: chat-requirements request failed: %w", err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("chatgpt-web: chat-requirements status %d: %s", resp.StatusCode, truncate(string(body), 256))
-	}
-	var cr chatRequirements
-	if err := common.Unmarshal(body, &cr); err != nil {
-		return nil, fmt.Errorf("chatgpt-web: parse chat-requirements failed: %w", err)
-	}
-	if cr.Token == "" {
-		return nil, fmt.Errorf("chatgpt-web: empty chat-requirements token: %s", truncate(string(body), 256))
-	}
-	return &cr, nil
 }
 
 // solveProofOfWork 复刻网页端 sentinel PoW：

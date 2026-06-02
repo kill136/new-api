@@ -25,4 +25,6 @@ var ModelList = []string{
 	"o3",
 	"o4-mini",
 	"chatgpt-4o-latest",
+	// 图像生成（独立模型，走 /v1/images/generations）：内部用 conversation 图像工具异步生成
+	"gpt-image-2",
 }

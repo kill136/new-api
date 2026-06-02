@@ -7,10 +7,9 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -44,56 +43,24 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, header *http.Header, info *relaycommon.RelayInfo) error {
-	key, err := ParseWebKey(info.ApiKey)
-	if err != nil {
-		return err
-	}
-
-	ua := defaultUA
-	base := map[string]string{
-		"Authorization":      "Bearer " + key.AccessToken,
-		"chatgpt-account-id": key.AccountID,
-		"OAI-Device-Id":      key.DeviceID,
-		"OAI-Language":       "en-US",
-		"User-Agent":         ua,
-		"Referer":            "https://chatgpt.com/",
-		"Origin":             "https://chatgpt.com",
-	}
-	for k, v := range base {
-		header.Set(k, v)
-	}
-	header.Set("Content-Type", "application/json")
-	header.Set("Accept", "text/event-stream")
-
-	// 关键：发 conversation 之前，先 sentinel 换 token + 本地解 PoW。
-	client, err := getHttpClient(info)
-	if err != nil {
-		return err
-	}
-	cr, err := fetchChatRequirements(client, info.ChannelBaseUrl, base)
-	if err != nil {
-		return err
-	}
-	header.Set("OpenAI-Sentinel-Chat-Requirements-Token", cr.Token)
-	if cr.Proofofwork.Required {
-		header.Set("OpenAI-Sentinel-Proof-Token", solveProofOfWork(cr.Proofofwork.Seed, cr.Proofofwork.Difficulty, ua))
-	}
-	// 注：turnstile.required 实测可不带 turnstile token；若上游某天强制，这里会在 DoResponse 报错暴露。
+	// 本渠道的请求构造（鉴权头 + sentinel + PoW）全部在 DoRequest 里用 tls-client 完成，
+	// 以绕过 Cloudflare 对 Go 默认 TLS 指纹的 403 拦截，此处无需处理。
 	return nil
 }
 
-func getHttpClient(info *relaycommon.RelayInfo) (*http.Client, error) {
-	if info.ChannelSetting.Proxy != "" {
-		return service.NewProxyHttpClient(info.ChannelSetting.Proxy)
-	}
-	return service.GetHttpClient(), nil
-}
-
 func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, requestBody io.Reader) (any, error) {
-	return channel.DoApiRequest(a, c, info, requestBody)
+	// 流式时设置 SSE 响应头（原本由 channel.DoApiRequest 内部完成，绕过后这里自己做）。
+	if info.IsStream {
+		helper.SetEventStreamHeaders(c)
+	}
+	return doConversationRequest(info, requestBody)
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {
+	// 图像生成（/v1/images/generations，模型 gpt-image-2）：异步轮询 + 下载
+	if info.RelayMode == relayconstant.RelayModeImagesGenerations {
+		return ImageHandler(c, info, resp)
+	}
 	// Responses API（/v1/responses）：把 conversation SSE 合成为 responses 事件
 	if info.RelayMode == relayconstant.RelayModeResponses {
 		if info.IsStream {
@@ -130,7 +97,10 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 }
 
 func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.ImageRequest) (any, error) {
-	return nil, errors.New("chatgpt-web channel: image not supported")
+	if strings.TrimSpace(request.Prompt) == "" {
+		return nil, errors.New("chatgpt-web channel: image prompt is required")
+	}
+	return buildImageConversationRequest(request.Prompt), nil
 }
 
 func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, request *dto.ClaudeRequest) (any, error) {
