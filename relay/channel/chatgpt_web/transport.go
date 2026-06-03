@@ -6,6 +6,7 @@ import (
 	"io"
 	nethttp "net/http"
 	"strings"
+	"sync"
 
 	"github.com/QuantumNous/new-api/common"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
@@ -14,6 +15,27 @@ import (
 	tls_client "github.com/bogdanfinn/tls-client"
 	"github.com/bogdanfinn/tls-client/profiles"
 )
+
+// tlsClientCache 按代理缓存 tls-client，复用底层连接（keep-alive）以省去每次 TLS 握手。
+// tls-client 内部是带连接池的 transport，可并发复用；同时复用 cookie jar（__cf_bm/cf_clearance 等更像浏览器）。
+var tlsClientCache sync.Map // key: proxy(string) -> tls_client.HttpClient
+
+// getTLSClient 返回缓存的 tls-client（按代理区分），没有则创建并缓存。
+func getTLSClient(info *relaycommon.RelayInfo) (tls_client.HttpClient, error) {
+	proxy := ""
+	if info != nil {
+		proxy = strings.TrimSpace(info.ChannelSetting.Proxy)
+	}
+	if v, ok := tlsClientCache.Load(proxy); ok {
+		return v.(tls_client.HttpClient), nil
+	}
+	cli, err := newTLSClient(info)
+	if err != nil {
+		return nil, err
+	}
+	actual, _ := tlsClientCache.LoadOrStore(proxy, cli)
+	return actual.(tls_client.HttpClient), nil
+}
 
 // 为什么有这个文件（见记忆 chatgpt-web-reverse-feasible 的更正）：
 // Cloudflare 会按 TLS 指纹（JA3/JA4）拦截 Go 默认 net/http（实测同一时刻 curl=200、Go=403）。
@@ -83,7 +105,7 @@ func doConversationRequest(info *relaycommon.RelayInfo, requestBody io.Reader) (
 	if err != nil {
 		return nil, err
 	}
-	client, err := newTLSClient(info)
+	client, err := getTLSClient(info)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +148,7 @@ func doConversationRequest(info *relaycommon.RelayInfo, requestBody io.Reader) (
 
 // tlsAuthedGet 用 tls-client 发一个带鉴权的 GET（用于图片资产下载等）。
 func tlsAuthedGet(info *relaycommon.RelayInfo, key *WebKey, url string) (*nethttp.Response, error) {
-	client, err := newTLSClient(info)
+	client, err := getTLSClient(info)
 	if err != nil {
 		return nil, err
 	}
