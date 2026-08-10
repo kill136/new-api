@@ -213,9 +213,6 @@ func InitDB() (err error) {
 func InitLogDB() (err error) {
 	if os.Getenv("LOG_SQL_DSN") == "" {
 		LOG_DB = DB
-		if common.IsMasterNode {
-			err = migrateLOGDB()
-		}
 		return
 	}
 	db, err := chooseDB("LOG_SQL_DSN", true)
@@ -372,14 +369,6 @@ func migrateLOGDB() error {
 	var err error
 	if err = LOG_DB.AutoMigrate(&Log{}); err != nil {
 		return err
-	}
-	if err = LOG_DB.AutoMigrate(&RequestLog{}); err != nil {
-		return err
-	}
-	// Migrate TEXT -> MEDIUMTEXT for MySQL (TEXT is 64KB, too small for large requests)
-	if common.UsingMySQL || common.LogSqlType == common.DatabaseTypeMySQL {
-		LOG_DB.Exec("ALTER TABLE `request_logs` MODIFY `request_body` MEDIUMTEXT")
-		LOG_DB.Exec("ALTER TABLE `request_logs` MODIFY `response_body` MEDIUMTEXT")
 	}
 	return nil
 }

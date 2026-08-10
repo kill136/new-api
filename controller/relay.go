@@ -67,20 +67,8 @@ func geminiRelayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewA
 func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	requestId := c.GetString(common.RequestIdKey)
-	relayStartTime := time.Now()
 	//group := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
 	//originalModel := common.GetContextKeyString(c, constant.ContextKeyOriginalModel)
-
-	// Capture request body for request logging
-	var capturedRequestBody string
-	if common.LogRequestBodyEnabled {
-		if bodyStorage, bodyErr := common.GetBodyStorage(c); bodyErr == nil {
-			if bodyBytes, readErr := bodyStorage.Bytes(); readErr == nil {
-				capturedRequestBody = string(bodyBytes)
-			}
-			bodyStorage.Seek(0, 0)
-		}
-	}
 
 	var (
 		newAPIError *types.NewAPIError
@@ -114,15 +102,6 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 					"error": newAPIError.ToOpenAIError(),
 				})
 			}
-		}
-		// Save request log after relay completes
-		if common.LogRequestBodyEnabled && capturedRequestBody != "" {
-			responseBody := ""
-			if rb := middleware.GetCapturedResponseBody(c); len(rb) > 0 {
-				responseBody = string(rb)
-			}
-			statusCode := c.Writer.Status()
-			service.SaveRequestLog(c, capturedRequestBody, responseBody, statusCode, relayStartTime)
 		}
 	}()
 
